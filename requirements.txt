@@ -3,12 +3,10 @@
 # For installation as package, use: pip install -e .
 
 numpy
-torch
+#torch
 scipy
-pybullet
 websockets
 pynput
-lerobot[feetech]
 # For development
 pytest
 black

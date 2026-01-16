@@ -1,3 +1,13 @@
+
+# VR 摇操双臂MKrobot
+clone代码， 安装：pip install -e .
+连接机械臂，终端启动telegrip
+VR 进入，浏览器链接到对应地址。
+长按X/A启动对应机械臂
+抓住grip按键可以控制机械臂移动
+短按X/A机械臂归零
+
+
 # telegrip - SO100 Robot Arm Teleoperation System
 
 An open source teleoperation control system for the [SO100 robot arm](https://github.com/TheRobotStudio/SO-ARM100) that supports input from VR controllers or keyboards with shared inverse kinematics, 3D visualization and a web UI.

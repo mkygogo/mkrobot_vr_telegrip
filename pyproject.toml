@@ -16,7 +16,7 @@ dependencies = [
     "torch",
     "websockets",
     "pynput",
-    "pybullet",
+    
     "scipy",
     "pyyaml",
 ]

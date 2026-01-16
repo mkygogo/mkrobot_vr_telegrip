@@ -15,7 +15,7 @@ from scipy.spatial.transform import Rotation as R
 
 from .base import BaseInputProvider, ControlGoal, ControlMode
 from ..config import TelegripConfig
-from ..core.kinematics import compute_relative_position
+from ..core.utils import compute_relative_position
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ class VRControllerState:
         self.hand = hand
         self.grip_active = False
         self.trigger_active = False
+        self.gripper_closed_state = False # 👈 新增：记录夹爪当前是开还是关 (默认False=Open)
         
         # Position tracking for relative movement
         self.origin_position = None
@@ -39,6 +40,7 @@ class VRControllerState:
         # Rotation tracking for wrist control
         self.z_axis_rotation = 0.0  # For wrist_roll
         self.x_axis_rotation = 0.0  # For wrist_flex (pitch)
+        self.y_axis_rotation = 0.0  # 新增：用于 wrist_yaw (J5)
         
         # Position tracking
         self.current_position = None
@@ -55,6 +57,7 @@ class VRControllerState:
         self.accumulated_rotation_quat = None
         self.z_axis_rotation = 0.0
         self.x_axis_rotation = 0.0
+        self.y_axis_rotation = 0.0
 
 
 class VRWebSocketServer(BaseInputProvider):
@@ -210,7 +213,19 @@ class VRWebSocketServer(BaseInputProvider):
     
     async def process_controller_data(self, data: Dict):
         """Process incoming VR controller data."""
-        
+        msg_type = data.get("type")
+        # 1. 归零指令 (短按)
+        if msg_type == "home_command":
+            target_arm = data.get("arm", "left")
+            await self.send_goal(ControlGoal(arm=target_arm, metadata={"action": "trigger_homing"}))
+            return
+
+        # 2. 启动指令 (长按) - 新增
+        if msg_type == "startup_command":
+            target_arm = data.get("arm", "left")
+            await self.send_goal(ControlGoal(arm=target_arm, metadata={"action": "trigger_startup"}))
+            return
+
         # Handle new dual controller format
         if 'leftController' in data and 'rightController' in data:
             left_data = data['leftController']
@@ -257,20 +272,38 @@ class VRWebSocketServer(BaseInputProvider):
         controller = self.left_controller if hand == 'left' else self.right_controller
         
         # Handle trigger for gripper control
-        trigger_active = trigger > 0.5
-        if trigger_active != controller.trigger_active:
-            controller.trigger_active = trigger_active
+        # trigger_active = trigger > 0.5
+        # if trigger_active != controller.trigger_active:
+        #     controller.trigger_active = trigger_active
             
-            # Send gripper control goal - do not specify mode to avoid interfering with position control
-            # Reverse behavior: gripper open by default, closes when trigger pressed
+        #     # Send gripper control goal - do not specify mode to avoid interfering with position control
+        #     # Reverse behavior: gripper open by default, closes when trigger pressed
+        #     gripper_goal = ControlGoal(
+        #         arm=hand,
+        #         gripper_closed=trigger_active,  # Inverted: closed when trigger NOT active
+        #         metadata={"source": "vr_trigger"}
+        #     )
+        #     await self.send_goal(gripper_goal)
+            
+        #     logger.info(f"🤏 {hand.upper()} gripper {'OPENED' if trigger_active else 'CLOSED'}")
+        # --- 夹爪 Toggle 逻辑 (按下触发切换) ---
+        is_trigger_down = trigger > 0.5
+        
+        # 检测上升沿 (从没按 -> 按下)
+        if is_trigger_down and not controller.trigger_active:
+            # 切换状态
+            controller.gripper_closed_state = not controller.gripper_closed_state
+            
+            # 发送目标
             gripper_goal = ControlGoal(
                 arm=hand,
-                gripper_closed=not trigger_active,  # Inverted: closed when trigger NOT active
-                metadata={"source": "vr_trigger"}
+                gripper_closed=controller.gripper_closed_state,
+                metadata={"source": "vr_trigger_toggle"}
             )
             await self.send_goal(gripper_goal)
-            
-            logger.info(f"🤏 {hand.upper()} gripper {'OPENED' if trigger_active else 'CLOSED'}")
+            logger.info(f"🤏 {hand.upper()} gripper toggled to {'CLOSED' if controller.gripper_closed_state else 'OPEN'}")
+        # 更新按键状态
+        controller.trigger_active = is_trigger_down
         
         # Handle grip button for arm movement control
         if grip_active:
@@ -329,6 +362,7 @@ class VRWebSocketServer(BaseInputProvider):
                     # Get accumulated rotations from quaternion
                     controller.z_axis_rotation = self.extract_roll_from_quaternion(controller.accumulated_rotation_quat, controller.origin_quaternion)
                     controller.x_axis_rotation = self.extract_pitch_from_quaternion(controller.accumulated_rotation_quat, controller.origin_quaternion)
+                    controller.y_axis_rotation = self.extract_yaw_from_quaternion(controller.accumulated_rotation_quat, controller.origin_quaternion) 
                 
                 # Create position control goal
                 # Note: We send relative position here, the control loop will handle
@@ -339,6 +373,7 @@ class VRWebSocketServer(BaseInputProvider):
                     target_position=relative_delta,  # Relative position delta
                     wrist_roll_deg=-controller.z_axis_rotation,
                     wrist_flex_deg=-controller.x_axis_rotation,
+                    wrist_yaw_deg=-controller.y_axis_rotation,
                     metadata={
                         "source": "vr_grip",
                         "relative_position": True,
@@ -377,14 +412,14 @@ class VRWebSocketServer(BaseInputProvider):
             controller.trigger_active = False
             
             # Send gripper closed goal - reversed behavior: gripper closes when trigger released
-            goal = ControlGoal(
-                arm=hand,
-                gripper_closed=True,  # Close gripper when trigger released
-                metadata={"source": "vr_trigger_release"}
-            )
-            await self.send_goal(goal)
-            
-            logger.info(f"🤏 {hand.upper()} gripper CLOSED (trigger released)")
+            # goal = ControlGoal(
+            #     arm=hand,
+            #     gripper_closed=True,  # Close gripper when trigger released
+            #     metadata={"source": "vr_trigger_release"}
+            # )
+            # await self.send_goal(goal)
+            #logger.info(f"🤏 {hand.upper()} gripper CLOSED (trigger released)")
+            logger.debug(f"{hand} trigger released (state update only)")
     
     def euler_to_quaternion(self, euler_deg: Dict[str, float]) -> np.ndarray:
         """Convert Euler angles in degrees to quaternion [x, y, z, w]."""
@@ -458,3 +493,27 @@ class VRWebSocketServer(BaseInputProvider):
         except Exception as e:
             logger.warning(f"Error extracting pitch from quaternion: {e}")
             return 0.0 
+        
+    def extract_yaw_from_quaternion(self, current_quat: np.ndarray, origin_quat: np.ndarray) -> float:
+        """从相对四元数旋转中提取绕 Y 轴的偏航（Yaw）旋转"""
+        if current_quat is None or origin_quat is None:
+            return 0.0
+        
+        try:
+            origin_rotation = R.from_quat(origin_quat)
+            current_rotation = R.from_quat(current_quat)
+            relative_rotation = current_rotation * origin_rotation.inv()
+            
+            # 获取旋转向量 (axis-angle)
+            rotvec = relative_rotation.as_rotvec()
+            
+            # 💡 旋转向量的 Y 分量 (索引 1) 代表绕 Y 轴的旋转 (Yaw)
+            y_rotation_rad = rotvec[1]
+            y_rotation_deg = -np.degrees(y_rotation_rad) # 根据需要调整正负号
+            
+            #return y_rotation_deg
+            #增加死区和限幅保护 (防止单帧跳变超过 30 度)
+            return np.clip(y_rotation_deg, -45, 45)
+        except Exception as e:
+            logger.warning(f"Error extracting yaw from quaternion: {e}")
+            return 0.0

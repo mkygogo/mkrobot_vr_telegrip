@@ -22,6 +22,7 @@ class ControlGoal:
     target_position: Optional[np.ndarray] = None  # 3D position in robot coordinates
     wrist_roll_deg: Optional[float] = None        # Wrist roll angle in degrees
     wrist_flex_deg: Optional[float] = None        # Wrist flex (pitch) angle in degrees
+    wrist_yaw_deg: Optional[float] = None         # Wrist yaw angle in degrees
     gripper_closed: Optional[bool] = None         # Gripper state (None = no change)
     
     # Additional data for debugging/monitoring

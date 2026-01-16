@@ -794,7 +794,7 @@ def parse_arguments():
     parser.add_argument("--host", default="0.0.0.0", help="Host IP address")
     
     # Paths
-    parser.add_argument("--urdf", default="URDF/SO100/so100.urdf", help="Path to robot URDF file")
+    parser.add_argument("--urdf", default="URDF/MKRobot/urdf/dk2.SLDASM.urdf", help="Path to robot URDF file")
     parser.add_argument("--webapp", default="webapp", help="Path to webapp directory")
     parser.add_argument("--cert", default="cert.pem", help="Path to SSL certificate")
     parser.add_argument("--key", default="key.pem", help="Path to SSL private key")

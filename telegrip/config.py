@@ -50,11 +50,12 @@ DEFAULT_CONFIG = {
             "enabled": True
         },
         "pybullet": {
-            "enabled": True
+            "enabled": False
         }
     },
     "paths": {
-        "urdf_path": "URDF/SO100/so100.urdf"
+        "urdf_path": "URDF/MKRobot/urdf/dk2.SLDASM.urdf", #"URDF/SO100/so100.urdf"
+        "mesh_dir":"URDF/MKRobot"
     },
     "gripper": {
         "open_angle": 0.0,
@@ -139,6 +140,7 @@ ANGLE_STEP = _config_data["control"]["keyboard"]["angle_step"]
 GRIPPER_STEP = _config_data["control"]["keyboard"]["gripper_step"]
 
 URDF_PATH = _config_data["paths"]["urdf_path"]
+URDF_MESH = _config_data["paths"]["mesh_dir"]
 
 GRIPPER_OPEN_ANGLE = _config_data["gripper"]["open_angle"]
 GRIPPER_CLOSED_ANGLE = _config_data["gripper"]["closed_angle"]
@@ -151,21 +153,24 @@ IK_HYSTERESIS_THRESHOLD = _config_data["ik"]["hysteresis_threshold"]
 IK_MOVEMENT_PENALTY_WEIGHT = _config_data["ik"]["movement_penalty_weight"]
 
 # --- Joint Configuration ---
-JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
-NUM_JOINTS = len(JOINT_NAMES)
-NUM_IK_JOINTS = 3  # Use only first 3 joints for IK (Rotation, Pitch, Elbow)
-WRIST_FLEX_INDEX = 3
-WRIST_ROLL_INDEX = 4
-GRIPPER_INDEX = 5
+JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_yaw", "wrist_roll", "gripper"]
+NUM_JOINTS = len(JOINT_NAMES) # 
+NUM_IK_JOINTS = 3  
 
-# Motor configuration for SO100
+WRIST_FLEX_INDEX = 3
+WRIST_YAW_INDEX = 4   # 新增
+WRIST_ROLL_INDEX = 5  # 更新索引
+GRIPPER_INDEX = 6     # 更新索引
+
+# Motor configuration for MKrobot
 COMMON_MOTORS = {
-    "shoulder_pan": [1, "sts3215"],
-    "shoulder_lift": [2, "sts3215"], 
-    "elbow_flex": [3, "sts3215"],
-    "wrist_flex": [4, "sts3215"],
-    "wrist_roll": [5, "sts3215"],
-    "gripper": [6, "sts3215"],
+"shoulder_pan": [1, "DM4340"],
+    "shoulder_lift": [2, "DM4340"], 
+    "elbow_flex": [3, "DM4340"],
+    "wrist_flex": [4, "DM4310"],
+    "wrist_yaw": [5, "DM4310"],   # 新增
+    "wrist_roll": [6, "DM4310"],  # 更新 ID
+    "gripper": [7, "DM4310"],     # 更新 ID
 }
 
 # URDF joint name mapping
@@ -174,8 +179,9 @@ URDF_TO_INTERNAL_NAME_MAP = {
     "2": "shoulder_lift",
     "3": "elbow_flex",
     "4": "wrist_flex",
-    "5": "wrist_roll",
-    "6": "gripper",
+    "5": "wrist_yaw",    # 新增
+    "6": "wrist_roll",   # 更新
+    "7": "gripper",      # 新增
 }
 
 # --- PyBullet Configuration ---
@@ -213,8 +219,8 @@ class TelegripConfig:
     follower_ports: Dict[str, str] = None
     
     # Control flags
-    enable_pybullet: bool = True
-    enable_pybullet_gui: bool = True
+    enable_pybullet: bool = False
+    enable_pybullet_gui: bool = False
     enable_robot: bool = True
     enable_vr: bool = True
     enable_keyboard: bool = True
@@ -223,6 +229,7 @@ class TelegripConfig:
     
     # Paths
     urdf_path: str = URDF_PATH
+    mesh_dir: str = URDF_MESH
     webapp_dir: str = "webapp"
     
     # IK settings

@@ -223,6 +223,46 @@ AFRAME.registerComponent('controller-updater', {
         this.sendGripRelease('left'); // Send grip release message
     });
 
+    // --- 左手逻辑 (X键) ---
+    let leftXPressTime = 0;
+    this.leftHand.addEventListener('xbuttondown', (evt) => {
+        leftXPressTime = Date.now();
+        console.log('❌ Left X Down');
+    });
+
+    this.leftHand.addEventListener('xbuttonup', (evt) => {
+        const duration = Date.now() - leftXPressTime;
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            if (duration > 1000) { // 长按 > 1秒
+                console.log('🚀 Long Press X - STARTUP Left Arm');
+                this.websocket.send(JSON.stringify({ type: "startup_command", arm: "left" }));
+            } else { // 短按
+                console.log('🏠 Short Press X - HOME Left Arm');
+                this.websocket.send(JSON.stringify({ type: "home_command", arm: "left" }));
+            }
+        }
+    });
+
+    // --- 右手逻辑 (A键) ---
+    let rightAPressTime = 0;
+    this.rightHand.addEventListener('abuttondown', (evt) => {
+        rightAPressTime = Date.now();
+        console.log('🅰️ Right A Down');
+    });
+
+    this.rightHand.addEventListener('abuttonup', (evt) => {
+        const duration = Date.now() - rightAPressTime;
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            if (duration > 1000) { // 长按 > 1秒
+                console.log('🚀 Long Press A - STARTUP Right Arm');
+                this.websocket.send(JSON.stringify({ type: "startup_command", arm: "right" }));
+            } else { // 短按
+                console.log('🏠 Short Press A - HOME Right Arm');
+                this.websocket.send(JSON.stringify({ type: "home_command", arm: "right" }));
+            }
+        }
+    });
+
     this.rightHand.addEventListener('triggerdown', (evt) => {
         console.log('Right Trigger Pressed');
         this.rightTriggerDown = true;
