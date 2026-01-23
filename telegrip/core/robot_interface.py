@@ -4,7 +4,6 @@ Provides a clean wrapper around robot devices with safety checks and convenience
 """
 
 import numpy as np
-import torch
 import time
 import logging
 import os

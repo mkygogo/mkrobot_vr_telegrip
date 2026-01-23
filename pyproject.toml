@@ -13,12 +13,14 @@ keywords = ["robotics", "teleoperation", "vr", "robot-control"]
 
 dependencies = [
     "numpy",
-    "torch",
     "websockets",
     "pynput",
-    
+    "opencv-python",
     "scipy",
     "pyyaml",
+    'pyserial',
+    'pin',
+    'meshcat',
 ]
 
 requires-python = ">=3.8"
